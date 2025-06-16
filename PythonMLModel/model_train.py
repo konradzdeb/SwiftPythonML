@@ -4,6 +4,7 @@ from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
+from yellowbrick.classifier import ClassificationReport
 
 # Load data
 iris = load_iris()
@@ -21,9 +22,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 model = RandomForestClassifier(random_state=42)
 model.fit(X_train, y_train)
 
-# Predict and evaluate
-y_pred = model.predict(X_test)
-# Accuracy
-print("Accuracy:", accuracy_score(y_test, y_pred))
-# Detailed classification report
-print(classification_report(y_test, y_pred, target_names=iris.target_names))
+# Visualise model results
+viz = ClassificationReport(model, support=True, classes=target_names)
+viz.score(X_test, y_test)
+viz.show()
