@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 
 # Load data
-iris = load_iris(return_X_y=False)
+iris = load_iris()
 X, y = iris.data, iris.target
 
 # Load data
