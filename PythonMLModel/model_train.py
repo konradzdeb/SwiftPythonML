@@ -2,7 +2,6 @@
 
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 from yellowbrick.classifier import ClassificationReport
 
@@ -23,6 +22,6 @@ model = RandomForestClassifier(random_state=42)
 model.fit(X_train, y_train)
 
 # Visualise model results
-viz = ClassificationReport(model, support=True, classes=target_names)
+viz = ClassificationReport(model, support=True, classes=iris.target_names)
 viz.score(X_test, y_test)
 viz.show()
