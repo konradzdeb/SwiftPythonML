@@ -5,7 +5,7 @@ import joblib
 import numpy as np
 
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
@@ -51,8 +51,6 @@ model.fit(X_train, y_train)
 y_pred = model.predict(X_val)
 
 print(f"Model Accuracy: {accuracy_score(y_val, y_pred):.3f}")
-print("Classification Report:")
-print(classification_report(y_val, y_pred, target_names=train_set.classes, digits=3))
 
 # Export model
 joblib.dump(model, "fashion_mnist_rf_model.joblib")
