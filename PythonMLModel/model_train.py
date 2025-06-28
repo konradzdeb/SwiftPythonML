@@ -1,42 +1,59 @@
-"""Train and evaluate a classifier, return metrics as pandas DataFrame."""
+"""Train a classifier on Fashion-MNIST and print performance summary."""
 
-import pandas as pd
-from sklearn.datasets import load_wine
+import joblib
+
+import numpy as np
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
+from torch.utils.data import Dataset
+from torchvision import datasets, transforms
 
-# Load dataset
-wine = load_wine()
-X = pd.DataFrame(wine.data, columns=wine.feature_names)
-y = pd.Series(wine.target, name="target")
-target_names = wine.target_names
-
-# Split into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+# Load Fashion-MNIST
+transform = transforms.ToTensor()
+train_set = datasets.FashionMNIST(
+    root="./data", train=True, download=True, transform=transform,
+)
+test_set = datasets.FashionMNIST(
+    root="./data", train=False, download=True, transform=transform,
 )
 
-# Train the model
-model = RandomForestClassifier(random_state=42)
+
+def dataset_to_numpy(dataset: Dataset) -> tuple[np.ndarray, np.ndarray]:
+    """Convert dataset to numpy arrays.
+
+    Args:
+        dataset (Dataset): The dataset to convert.
+
+    Returns:
+        tuple: A tuple containing the features and labels as numpy arrays.
+
+    """
+    x = dataset.data.numpy().reshape(len(dataset), -1)
+    y = dataset.targets.numpy()
+    return x, y
+
+
+X_train_full, y_train_full = dataset_to_numpy(train_set)
+X_test, y_test = dataset_to_numpy(test_set)
+
+# Train/val split
+X_train, X_val, y_train, y_val = train_test_split(
+    X_train_full, y_train_full, test_size=0.2, random_state=42, stratify=y_train_full
+)
+
+# Train classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
 model.fit(X_train, y_train)
 
-# Predict
-y_pred = model.predict(X_test)
+# Predict and evaluate
+y_pred = model.predict(X_val)
 
-# Accuracy
-accuracy = accuracy_score(y_test, y_pred)
+print(f"Model Accuracy: {accuracy_score(y_val, y_pred):.3f}")
+print("Classification Report:")
+print(classification_report(y_val, y_pred, target_names=train_set.classes, digits=3))
 
-# Classification report as dict → DataFrame
-report_dict = classification_report(
-    y_test, y_pred, target_names=target_names, output_dict=True
-)
-report_df = pd.DataFrame(report_dict).transpose().round(3)
-
-# Optionally add accuracy as a separate row
-report_df.loc["accuracy"] = ["", "", "", accuracy, ""]
-
-# Display the final DataFrame
-print(f"\nAccuracy: {accuracy:.3f}")
-print("\nClassification Report (as DataFrame):")
-print(report_df)
+# Export model
+joblib.dump(model, "fashion_mnist_rf_model.joblib")
+print("Model exported to: fashion_mnist_rf_model.joblib")
