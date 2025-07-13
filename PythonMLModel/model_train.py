@@ -1,13 +1,15 @@
 """Train a classifier on Fashion-MNIST and print performance summary."""
 
-import joblib
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+import coremltools as ct
 
 import numpy as np
 import pandas as pd
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 
@@ -25,53 +27,62 @@ test_set = datasets.FashionMNIST(
 FASHION_LABELS = train_set.classes
 
 
-def dataset_to_numpy(dataset: Dataset) -> tuple[np.ndarray, np.ndarray]:
-    """Convert dataset to numpy arrays.
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+        self.fc = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64 * 7 * 7, 128),
+            nn.ReLU(),
+            nn.Linear(128, 10)
+        )
 
-    Args:
-        dataset (Dataset): The dataset to convert.
-
-    Returns:
-        tuple: A tuple containing the features and labels as numpy arrays.
-
-    """
-    x = dataset.data.numpy().reshape(len(dataset), -1)
-    y = np.array([FASHION_LABELS[i] for i in dataset.targets.numpy()])
-    return x, y
+    def forward(self, x):
+        x = self.conv(x)
+        return self.fc(x)
 
 
-X_train_full, y_train_full = dataset_to_numpy(train_set)
-X_test, y_test = dataset_to_numpy(test_set)
+train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
+val_loader = DataLoader(test_set, batch_size=64, shuffle=False)
 
-# Train/val split
-X_train, X_val, y_train, y_val = train_test_split(
-    X_train_full, y_train_full, test_size=0.2, random_state=42, stratify=y_train_full
-)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = SimpleCNN().to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# Train classifier
-model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-model.fit(X_train, y_train)
+for epoch in range(5):
+    model.train()
+    for images, labels in train_loader:
+        images, labels = images.to(device), labels.to(device)
+        optimizer.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
 
-# Predict and evaluate
-y_pred = model.predict(X_val)
+model.eval()
+all_preds = []
+all_labels = []
+with torch.no_grad():
+    for images, labels in val_loader:
+        images = images.to(device)
+        outputs = model(images)
+        preds = outputs.argmax(dim=1).cpu().numpy()
+        all_preds.extend(preds)
+        all_labels.extend(labels.numpy())
+print(classification_report(all_labels, all_preds, target_names=FASHION_LABELS))
 
-print(f"Model Accuracy: {accuracy_score(y_val, y_pred):.3f}")
-
-# Print sample predictions
-sample_indices = np.random.choice(len(X_val), size=10, replace=False)
-sample_images = X_val[sample_indices]
-sample_true = y_val[sample_indices]
-sample_pred = model.predict(sample_images)
-
-df = pd.DataFrame({
-    "True Label": sample_true,
-    "Predicted Label": sample_pred,
-    "Match": sample_true == sample_pred
-})
-
-print("\nSample Predictions:")
-print(df.to_markdown(index=False))
-
-# Export model
-joblib.dump(model, "fashion_mnist_rf_model.joblib")
-print("\nModel exported to: fashion_mnist_rf_model.joblib")
+example_input = torch.rand(1, 1, 28, 28).to(device)
+traced = torch.jit.trace(model, example_input)
+classifier_config = ct.ClassifierConfig(class_labels=FASHION_LABELS)
+mlmodel = ct.convert(traced, inputs=[ct.ImageType(name="image", shape=(1, 1, 28, 28), scale=1/255.0)], classifier_config=classifier_config)
+mlmodel.save("FashionMNISTClassifier.mlpackage")
+print("Exported CoreML model to FashionMNISTClassifier.mlpackage")
