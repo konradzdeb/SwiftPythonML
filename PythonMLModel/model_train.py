@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 
+
 # Load Fashion-MNIST
 transform = transforms.ToTensor()
 train_set = datasets.FashionMNIST(
@@ -18,6 +19,9 @@ train_set = datasets.FashionMNIST(
 test_set = datasets.FashionMNIST(
     root="./data", train=False, download=True, transform=transform,
 )
+
+# Use the class labels from the dataset
+FASHION_LABELS = train_set.classes
 
 
 def dataset_to_numpy(dataset: Dataset) -> tuple[np.ndarray, np.ndarray]:
@@ -31,7 +35,7 @@ def dataset_to_numpy(dataset: Dataset) -> tuple[np.ndarray, np.ndarray]:
 
     """
     x = dataset.data.numpy().reshape(len(dataset), -1)
-    y = dataset.targets.numpy()
+    y = np.array([FASHION_LABELS[i] for i in dataset.targets.numpy()])
     return x, y
 
 

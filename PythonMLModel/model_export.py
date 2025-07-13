@@ -16,5 +16,5 @@ output_feature = "classLabel"
 coreml_model = ct.converters.sklearn.convert(model, input_features, output_feature)
 
 # Save Core ML model
-coreml_model.save("FashionMNISTClassifier.mlmodel")
-print("CoreML model saved to: FashionMNISTClassifier.mlmodel")
+coreml_model.save("FashionMNISTClassifier.mlpackage")
+print("CoreML model saved to: FashionMNISTClassifier.mlpackage")
