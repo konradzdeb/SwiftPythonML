@@ -3,6 +3,7 @@
 import joblib
 
 import numpy as np
+import pandas as pd
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
@@ -56,6 +57,21 @@ y_pred = model.predict(X_val)
 
 print(f"Model Accuracy: {accuracy_score(y_val, y_pred):.3f}")
 
+# Print sample predictions
+sample_indices = np.random.choice(len(X_val), size=10, replace=False)
+sample_images = X_val[sample_indices]
+sample_true = y_val[sample_indices]
+sample_pred = model.predict(sample_images)
+
+df = pd.DataFrame({
+    "True Label": sample_true,
+    "Predicted Label": sample_pred,
+    "Match": sample_true == sample_pred
+})
+
+print("\nSample Predictions:")
+print(df.to_markdown(index=False))
+
 # Export model
 joblib.dump(model, "fashion_mnist_rf_model.joblib")
-print("Model exported to: fashion_mnist_rf_model.joblib")
+print("\nModel exported to: fashion_mnist_rf_model.joblib")
