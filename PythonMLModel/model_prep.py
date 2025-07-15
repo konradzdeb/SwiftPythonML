@@ -1,16 +1,13 @@
 """Train a classifier on Fashion-MNIST and print performance summary."""
 
 import torch
+import torch.mps
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import coremltools as ct
 
-import numpy as np
-import pandas as pd
-
 from sklearn.metrics import classification_report
-from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 
 
@@ -53,7 +50,7 @@ class SimpleCNN(nn.Module):
 train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
 val_loader = DataLoader(test_set, batch_size=64, shuffle=False)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("mps")
 model = SimpleCNN().to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -78,11 +75,19 @@ with torch.no_grad():
         preds = outputs.argmax(dim=1).cpu().numpy()
         all_preds.extend(preds)
         all_labels.extend(labels.numpy())
-print(classification_report(all_labels, all_preds, target_names=FASHION_LABELS))
+print(classification_report(all_labels, all_preds,
+                            target_names=FASHION_LABELS))
 
 example_input = torch.rand(1, 1, 28, 28).to(device)
 traced = torch.jit.trace(model, example_input)
 classifier_config = ct.ClassifierConfig(class_labels=FASHION_LABELS)
-mlmodel = ct.convert(traced, inputs=[ct.ImageType(name="image", shape=(1, 28, 28), scale=1/255.0)], classifier_config=classifier_config)
+mlmodel = ct.convert(
+    traced,
+    inputs=[ct.ImageType(name="image",
+                         shape=(1, 1, 28, 28), 
+                         scale=1/255.0,
+                         color_layout=ct.colorlayout.GRAYSCALE)],
+    classifier_config=classifier_config
+)
 mlmodel.save("FashionMNISTClassifier.mlpackage")
 print("Exported CoreML model to FashionMNISTClassifier.mlpackage")
